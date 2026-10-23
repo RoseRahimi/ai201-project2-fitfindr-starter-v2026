@@ -20,33 +20,85 @@ That last line is what your loop branches on. "Returns a list" earns nothing —
 the description has to say what is *in* the list.
 """
 
+import re
+
 import config  # noqa: F401 — you'll use this in search_listings
 from generate import generate
 from utils.data_loader import load_listings
 
 
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
+# the standard English stopword list (same words as NLTK's)
 _STOPWORDS = {
-    "a", "an", "and" , "with", "under", "over", "of", "in", "for"
+    "a", "about", "above", "after", "again", "against", "ain", "all", "am",
+    "an", "and", "any", "are", "aren", "aren't", "as", "at",
+    "be", "because", "been", "before", "being", "below", "between", "both",
+    "but", "by",
+    "can", "couldn", "couldn't",
+    "d", "did", "didn", "didn't", "do", "does", "doesn", "doesn't", "doing",
+    "don", "don't", "down", "during",
+    "each",
+    "few", "for", "from", "further",
+    "had", "hadn", "hadn't", "has", "hasn", "hasn't", "have", "haven",
+    "haven't", "having", "he", "her", "here", "hers", "herself", "him",
+    "himself", "his", "how",
+    "i", "if", "in", "into", "is", "isn", "isn't", "it", "it's", "its",
+    "itself",
+    "just",
+    "ll",
+    "m", "ma", "me", "mightn", "mightn't", "more", "most", "mustn",
+    "mustn't", "my", "myself",
+    "needn", "needn't", "no", "nor", "not", "now",
+    "o", "of", "off", "on", "once", "only", "or", "other", "our", "ours",
+    "ourselves", "out", "over", "own",
+    "re",
+    "s", "same", "shan", "shan't", "she", "she's", "should", "should've",
+    "shouldn", "shouldn't", "so", "some", "such",
+    "t", "than", "that", "that'll", "the", "their", "theirs", "them",
+    "themselves", "then", "there", "these", "they", "this", "those",
+    "through", "to", "too",
+    "under", "until", "up",
+    "ve", "very",
+    "was", "wasn", "wasn't", "we", "were", "weren", "weren't", "what",
+    "when", "where", "which", "while", "who", "whom", "why", "will", "with",
+    "won", "won't", "wouldn", "wouldn't",
+    "y", "you", "you'd", "you'll", "you're", "you've", "your", "yours",
+    "yourself", "yourselves",
 }
+
+def _stem(word: str) -> str:
+    """crude plural handling so 'tees' matches 'tee' and 'jeans' matches 'jean'"""
+    return word[:-1] if len(word) > 3 and word.endswith("s") else word
 
 def _keywords(text:str)-> set[str]:
     """ lowercase words worth matching on, stopwords removed"""
     words = re.findall(r"[a-z0-9]+", (text or "").lower())
-    return {w for w in words if w not in _STOPWORDS and len(w)>1}
+    return {_stem(w) for w in words if w not in _STOPWORDS and len(w)>1}
 
 def _size_tokens(size:str) -> set[str]:
-    cleaned = re.sub(r"\([^)]*\)", " ", size or "") #drop paranthesis
-    parts = [p.strip().upper() for p in cleaned.split("/")]
-    return {p for p in parts if p } 
+    cleaned = re.sub(r"\([^)]*\)", " ", size or "").upper() #drop paranthesis
+    cleaned = re.sub(r"\bUS\s+", "US", cleaned)  # "US 9" -> "US9" so "US" isn't its own token
+    parts = re.split(r"[/\s]+", cleaned)          # "S/M" -> S, M   "W30 L30" -> W30, L30
+    return {p for p in parts if p }
 
 def _size_match(wanted:str, listing_size:str)-> bool:
     if not wanted:
         return True
-    listing_tokens = _size_tokens(listing_size)
-    if any(token.startwith("ONE SIZE") for token in listing_tokens):
+    if (listing_size or "").upper().startswith("ONE SIZE"):
         return True
-    return bool(_size_tokens(wanted) & listing_tokens)
+    return bool(_size_tokens(wanted) & _size_tokens(listing_size))
+
+def _score(query_words: set[str], listing: dict) -> int:
+    """title, tags, category and colors count double; the description counts once"""
+    strong = " ".join([
+        listing.get("title") or "",
+        listing.get("category") or "",
+        listing.get("brand") or "",
+        " ".join(listing.get("style_tags") or []),
+        " ".join(listing.get("colors") or []),
+    ])
+    weak = listing.get("description") or ""
+    return 2 * len(query_words & _keywords(strong)) + len(query_words & _keywords(weak))
 
 def search_listings(
     description: str,
@@ -99,10 +151,23 @@ def search_listings(
     Test it from a terminal before you move on:
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
-    # TODO: replace this with your implementation
-    listings = load_listings()
-     
-    return []
+    query_words = _keywords(description)
+    if not query_words:
+        return []
+
+    scored = []
+    for listing in load_listings():
+        if max_price is not None and listing["price"] > max_price:
+            continue
+        if not _size_match(size, listing.get("size")):
+            continue
+        score = _score(query_words, listing)
+        if score > 0:
+            scored.append((score, listing))
+
+    # sorted() is stable, so ties keep the order they have in the data
+    scored = sorted(scored, key=lambda pair: pair[0], reverse=True)
+    return [listing for _, listing in scored[:config.SEARCH_RESULT_LIMIT]]
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
@@ -135,8 +200,51 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    item_text = _describe_item(new_item)
+    items = (wardrobe or {}).get("items") or []
+
+    if not items:
+        prompt = (
+            f"Someone is thinking about buying this thrifted item:\n{item_text}\n\n"
+            "They haven't told us what's in their wardrobe. Suggest one or two "
+            "outfits built around this item, using common basics most people own "
+            "(e.g. plain tee, straight jeans, white sneakers). Keep it under 120 words."
+        )
+    else:
+        closet = "\n".join(_describe_wardrobe_item(w) for w in items)
+        prompt = (
+            f"Someone is thinking about buying this thrifted item:\n{item_text}\n\n"
+            f"Here is what they already own:\n{closet}\n\n"
+            "Suggest one or two outfits that pair the new item with specific pieces "
+            "from their wardrobe. Name the wardrobe pieces exactly as listed. "
+            "Keep it under 120 words."
+        )
+
+    response = generate(prompt, system="You are a practical, friendly personal stylist.")
+    if not response or not response.strip():
+        return f"Style the {new_item.get('title', 'item')} with simple basics and let it be the focus of the outfit."
+    return response.strip()
+
+
+def _describe_item(item: dict) -> str:
+    """one listing as a few readable lines for a prompt; brand is often None"""
+    lines = [
+        f"Title: {item.get('title')}",
+        f"Category: {item.get('category')}",
+        f"Colors: {', '.join(item.get('colors') or [])}",
+        f"Style: {', '.join(item.get('style_tags') or [])}",
+        f"Price: ${item.get('price', 0):.2f} on {item.get('platform')}",
+    ]
+    if item.get("brand"):
+        lines.append(f"Brand: {item['brand']}")
+    return "\n".join(lines)
+
+
+def _describe_wardrobe_item(w: dict) -> str:
+    line = f"- {w.get('name')} ({w.get('category')}; {', '.join(w.get('colors') or [])})"
+    if w.get("notes"):
+        line += f" — {w['notes']}"
+    return line
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
@@ -175,5 +283,18 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    if not outfit or not outfit.strip():
+        return "No outfit suggestion to caption, so there's no fit card for this item."
+
+    prompt = (
+        f"Write a 2-4 sentence social media caption about this thrift find.\n\n"
+        f"Item:\n{_describe_item(new_item)}\n\n"
+        f"How it's being styled:\n{outfit}\n\n"
+        "Rules: sound like a real person posting their find, not a product listing. "
+        "Mention the item, the price, and the platform once each. Be specific about "
+        "the vibe. Return only the caption."
+    )
+    response = generate(prompt, system="You write short, casual outfit captions for social media.")
+    if not response or not response.strip():
+        return f"Thrifted this {new_item.get('title', 'piece')} for ${new_item.get('price', 0):.2f} on {new_item.get('platform')}."
+    return response.strip()
