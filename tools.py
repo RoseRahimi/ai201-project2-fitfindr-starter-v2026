@@ -26,6 +26,27 @@ from utils.data_loader import load_listings
 
 
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
+_STOPWORDS = {
+    "a", "an", "and" , "with", "under", "over", "of", "in", "for"
+}
+
+def _keywords(text:str)-> set[str]:
+    """ lowercase words worth matching on, stopwords removed"""
+    words = re.findall(r"[a-z0-9]+", (text or "").lower())
+    return {w for w in words if w not in _STOPWORDS and len(w)>1}
+
+def _size_tokens(size:str) -> set[str]:
+    cleaned = re.sub(r"\([^)]*\)", " ", size or "") #drop paranthesis
+    parts = [p.strip().upper() for p in cleaned.split("/")]
+    return {p for p in parts if p } 
+
+def _size_match(wanted:str, listing_size:str)-> bool:
+    if not wanted:
+        return True
+    listing_tokens = _size_tokens(listing_size)
+    if any(token.startwith("ONE SIZE") for token in listing_tokens):
+        return True
+    return bool(_size_tokens(wanted) & listing_tokens)
 
 def search_listings(
     description: str,
@@ -79,6 +100,8 @@ def search_listings(
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
     # TODO: replace this with your implementation
+    listings = load_listings()
+     
     return []
 
 

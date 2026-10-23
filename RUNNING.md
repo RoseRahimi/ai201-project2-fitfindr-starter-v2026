@@ -70,25 +70,25 @@ does nothing.
 
 ## Every command
 
-| Command | What it does |
-|---|---|
-| `python test.py` | Checks your environment. Run it whenever something feels off |
-| `python app.py fields` | The fields a listing and a wardrobe item have — **Milestone 1** |
-| `python app.py listings` | Browse the data. `--full` for whole records, `-n` for how many |
-| `python app.py examples` | Queries worth trying, including one that matches nothing |
-| `python app.py ask '...'` | Run the agent on one query — **single quotes** |
-| `python app.py ask` | Keep asking until you press Enter on an empty line |
-| `python agent.py` | Runs both example paths — one that matches, one that can't |
-| `python mcp_server.py` | Starts your MCP server — **unit 4** |
-| `python mcp_client.py` | Asks the server what it offers — **unit 4** |
+| Command                               | What it does                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `python test.py`                    | Checks your environment. Run it whenever something feels off              |
+| `python app.py fields`              | The fields a listing and a wardrobe item have — **Milestone 1**    |
+| `python app.py listings`            | Browse the data. `--full` for whole records, `-n` for how many        |
+| `python app.py examples`            | Queries worth trying, including one that matches nothing                  |
+| `python app.py ask '...'`           | Run the agent on one query — **single quotes**                     |
+| `python app.py ask`                 | Keep asking until you press Enter on an empty line                        |
+| `python agent.py`                   | Runs both example paths — one that matches, one that can't               |
+| `python mcp_server.py`              | Starts your MCP server — **unit 4**                                |
+| `python mcp_client.py`              | Asks the server what it offers — **unit 4**                        |
 | `python run_eval.py --label before` | Runs every scenario five times and writes the run log — **unit 4** |
-| `python serve.py` | Serves the agent over HTTP instead of exiting — **unit 9** |
+| `python serve.py`                   | Serves the agent over HTTP instead of exiting — **unit 9**         |
 
 Useful flags on `ask`:
 
-| Flag | What it does |
-|---|---|
-| `--trace` | Print the loop step by step, once you've added the trace calls |
+| Flag                 | What it does                                                      |
+| -------------------- | ----------------------------------------------------------------- |
+| `--trace`          | Print the loop step by step, once you've added the trace calls    |
 | `--empty-wardrobe` | Run as a user with nothing saved — one of unit 4's failure modes |
 
 ---
@@ -97,25 +97,25 @@ Useful flags on `ask`:
 
 ### Unit 3 — the build
 
-| Milestone | What you're doing | Where |
-|---|---|---|
-| 1 | Read the data, run the starter | `app.py fields`, `app.py listings --full`, `app.py ask` |
-| 2 | Spec your three tools | README, **Tool Inventory** |
-| 3 | Write your acceptance criteria | `criteria.md` |
-| 4 | Build the three tools | `tools.py`, tested one at a time from a terminal |
-| 5 | Wire the loop and the state | `agent.py::run_agent` |
-| 6 | Write it up | README |
+| Milestone | What you're doing              | Where                                                         |
+| --------- | ------------------------------ | ------------------------------------------------------------- |
+| 1         | Read the data, run the starter | `app.py fields`, `app.py listings --full`, `app.py ask` |
+| 2         | Spec your three tools          | README, **Tool Inventory**                              |
+| 3         | Write your acceptance criteria | `criteria.md`                                               |
+| 4         | Build the three tools          | `tools.py`, tested one at a time from a terminal            |
+| 5         | Wire the loop and the state    | `agent.py::run_agent`                                       |
+| 6         | Write it up                    | README                                                        |
 
 ### Unit 4 — the test
 
-| Milestone | What you're doing | Where |
-|---|---|---|
-| 1 | Move one tool onto MCP | `mcp_server.py`, then `mcp_client.call_tool` in `run_agent` |
-| 2 | Break it on purpose, then trace it | `trace.py`, `app.py ask --trace` |
-| 3 | Run your test | `scenarios.py`, then `run_eval.py --label before` |
-| 4 | Call each criterion, diagnose the misses | README |
-| 5 | Fix one thing and re-run | `run_eval.py --label after` |
-| 6 | Say what's still broken | README |
+| Milestone | What you're doing                        | Where                                                             |
+| --------- | ---------------------------------------- | ----------------------------------------------------------------- |
+| 1         | Move one tool onto MCP                   | `mcp_server.py`, then `mcp_client.call_tool` in `run_agent` |
+| 2         | Break it on purpose, then trace it       | `trace.py`, `app.py ask --trace`                              |
+| 3         | Run your test                            | `scenarios.py`, then `run_eval.py --label before`             |
+| 4         | Call each criterion, diagnose the misses | README                                                            |
+| 5         | Fix one thing and re-run                 | `run_eval.py --label after`                                     |
+| 6         | Say what's still broken                  | README                                                            |
 
 ---
 
@@ -140,14 +140,14 @@ On a host, the start command is:
 gunicorn serve:app
 ```
 
-| Thing | What it means |
-|---|---|
-| `PORT` | The host tells your app which port to listen on by setting this. Both `serve.py` and `gunicorn` read it, and `serve.py` falls back to `5000` on your machine. Don't hard-code a port |
-| `POST /ask` | `{"query": "...", "wardrobe": {...}}` — wardrobe optional. Returns the session dict, `error` and all |
-| `GET /health` | Says `ok` if the app is awake |
+| Thing                            | What it means                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PORT`                         | The host tells your app which port to listen on by setting this. Both `serve.py` and `gunicorn` read it, and `serve.py` falls back to `5000` on your machine. Don't hard-code a port                                                                                                                                                                             |
+| `POST /ask`                    | `{"query": "...", "wardrobe": {...}}` — wardrobe optional. Returns the session dict, `error` and all                                                                                                                                                                                                                                                                |
+| `GET /health`                  | Says `ok` if the app is awake                                                                                                                                                                                                                                                                                                                                          |
 | It answers one request at a time | On purpose. A second request waits for the first to finish, and prints `[serve] another request is still running` while it waits. An MCP tool call starts a whole second Python process, and the free tier's 512 MB has no room for two of those at once — and `generate.py`'s rate-limit counting assumes one caller. The reasoning is written out in `serve.py` |
-| `gunicorn serve:app`, exactly | Not `-k gevent`, not `-k eventlet`, not wrapped for uvicorn. `mcp_client.call_tool` uses `asyncio.run()`, which won't start inside a running event loop, so an async worker breaks **every** MCP call — and only once you've deployed it |
-| The first request is slow | The free tier puts your app to sleep after about fifteen minutes of nothing. The next request wakes it up and waits for it — around a minute. Not a bug, and worth knowing before you demo it |
+| `gunicorn serve:app`, exactly  | Not `-k gevent`, not `-k eventlet`, not wrapped for uvicorn. `mcp_client.call_tool` uses `asyncio.run()`, which won't start inside a running event loop, so an async worker breaks **every** MCP call — and only once you've deployed it                                                                                                                  |
+| The first request is slow        | The free tier puts your app to sleep after about fifteen minutes of nothing. The next request wakes it up and waits for it — around a minute. Not a bug, and worth knowing before you demo it                                                                                                                                                                           |
 
 `serve.py` ships with **no logging and no timing in it**, on purpose. You add
 that yourself in the follow-along, before you deploy — instrumenting first is
@@ -157,23 +157,23 @@ the point of the session.
 
 ## Where everything lives
 
-| File | What it does |
-|---|---|
-| `config.py` | Every setting worth changing — **TEMPERATURE and the cache are at the top** |
-| `tools.py` | Your three tools. **Stubs — you build these** |
-| `agent.py` | The planning loop and the session. **Stub — you build this** |
-| `generate.py` | The only thing that calls out to a service. Handles pacing and quota |
-| `trace.py` | The trace helper, and the loop's stop condition |
-| `app.py` | The command line |
-| `serve.py` | The same agent over HTTP, for deploying — **unit 9** |
-| `mcp_server.py` | Your MCP server — **unit 4, you register the tool** |
-| `mcp_client.py` | Calling an MCP tool from your agent. Given to you |
-| `scenarios.py` | What your test runs. **You fill this in** |
-| `run_eval.py` | Runs the scenarios repeatedly and writes the run log |
-| `criteria.md` | Your five acceptance criteria. **You fill this in** |
-| `data/` | 40 listings and the wardrobe schema |
-| `utils/data_loader.py` | Loading the data. Use this rather than reading the files yourself |
-| `results/` | Run logs. **Commit these** — they're your evidence |
+| File                     | What it does                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `config.py`            | Every setting worth changing — **TEMPERATURE and the cache are at the top** |
+| `tools.py`             | Your three tools. **Stubs — you build these**                               |
+| `agent.py`             | The planning loop and the session. **Stub — you build this**                |
+| `generate.py`          | The only thing that calls out to a service. Handles pacing and quota               |
+| `trace.py`             | The trace helper, and the loop's stop condition                                    |
+| `app.py`               | The command line                                                                   |
+| `serve.py`             | The same agent over HTTP, for deploying — **unit 9**                        |
+| `mcp_server.py`        | Your MCP server — **unit 4, you register the tool**                         |
+| `mcp_client.py`        | Calling an MCP tool from your agent. Given to you                                  |
+| `scenarios.py`         | What your test runs. **You fill this in**                                    |
+| `run_eval.py`          | Runs the scenarios repeatedly and writes the run log                               |
+| `criteria.md`          | Your five acceptance criteria. **You fill this in**                          |
+| `data/`                | 40 listings and the wardrobe schema                                                |
+| `utils/data_loader.py` | Loading the data. Use this rather than reading the files yourself                  |
+| `results/`             | Run logs. **Commit these** — they're your evidence                          |
 
 ---
 
@@ -215,22 +215,22 @@ is the most common architectural failure in production agents.
 
 ## When something goes wrong
 
-| What you see | What it means |
-|---|---|
-| `The planning loop isn't built yet` | Correct, at the start. That's the TODO in `agent.py` |
-| `No GEMINI_API_KEY found` | No `.env`, or the key wasn't pasted in. On Windows check it didn't save as `.env.txt` |
-| A message saying the model couldn't be reached | Usually a bad key. This is also **exactly what unit 4 Milestone 2 asks you to trigger on purpose** |
-| `[rate limit] ... Waiting 34s` | Working as intended. Leave it |
-| `[serve] another request is still running` | Also working as intended. `serve.py` answers one request at a time; yours is queued behind one that's mid-run |
-| `QuotaGuard: This session has made 300 requests` | A loop isn't ending. Find it before raising the budget |
-| `The loop ran 11 times, past MAX_ITERATIONS` | Same thing, caught earlier |
-| `The server doesn't offer a tool called '...'` | Nothing registered in `mcp_server.py` yet, or the name doesn't match |
-| MCP returns a string where you expected a list | You're not going through `mcp_client.call_tool`, which unwraps it |
-| Fit cards identical every run | `CACHE_ENABLED` or `TEMPERATURE`. See above |
-| `--trace` prints nothing | You haven't added `trace.step()` calls yet — unit 4, Milestone 2 |
-| `IncompleteFieldDefinitionWarning: Field 'lifespan'` | Harmless noise from the MCP library's dependencies. Not your code, not an error. Ignore it |
-| A price ceiling you typed is being ignored | You used double quotes in PowerShell. `$30` vanished. Use single quotes |
-| `UnicodeEncodeError: 'charmap' codec can't encode` | Shouldn't happen — `config.py` sets the console to UTF-8. If you see it, you're running a file that doesn't import `config` |
+| What you see                                           | What it means                                                                                                                    |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `The planning loop isn't built yet`                  | Correct, at the start. That's the TODO in `agent.py`                                                                           |
+| `No GEMINI_API_KEY found`                            | No `.env`, or the key wasn't pasted in. On Windows check it didn't save as `.env.txt`                                        |
+| A message saying the model couldn't be reached         | Usually a bad key. This is also **exactly what unit 4 Milestone 2 asks you to trigger on purpose**                         |
+| `[rate limit] ... Waiting 34s`                       | Working as intended. Leave it                                                                                                    |
+| `[serve] another request is still running`           | Also working as intended. `serve.py` answers one request at a time; yours is queued behind one that's mid-run                  |
+| `QuotaGuard: This session has made 300 requests`     | A loop isn't ending. Find it before raising the budget                                                                           |
+| `The loop ran 11 times, past MAX_ITERATIONS`         | Same thing, caught earlier                                                                                                       |
+| `The server doesn't offer a tool called '...'`       | Nothing registered in `mcp_server.py` yet, or the name doesn't match                                                           |
+| MCP returns a string where you expected a list         | You're not going through `mcp_client.call_tool`, which unwraps it                                                              |
+| Fit cards identical every run                          | `CACHE_ENABLED` or `TEMPERATURE`. See above                                                                                  |
+| `--trace` prints nothing                             | You haven't added `trace.step()` calls yet — unit 4, Milestone 2                                                              |
+| `IncompleteFieldDefinitionWarning: Field 'lifespan'` | Harmless noise from the MCP library's dependencies. Not your code, not an error. Ignore it                                       |
+| A price ceiling you typed is being ignored             | You used double quotes in PowerShell. `$30` vanished. Use single quotes                                                        |
+| `UnicodeEncodeError: 'charmap' codec can't encode`   | Shouldn't happen — `config.py` sets the console to UTF-8. If you see it, you're running a file that doesn't import `config` |
 
 Still stuck after one honest attempt? Post in the help channel with the full
 error, what you ran, and what you expected.
