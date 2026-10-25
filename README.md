@@ -41,6 +41,8 @@
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
+FitFindr takes a plain-language thrift request like `'vintage graphic tee under $30'` or `'denim jacket size S'` and searches 40 secondhand listings from depop, poshmark and thredUp for the best match within that price and size. For the top match, it suggests one or two outfits that pair the item with specific pieces from the user's wardrobe (or with common basics if the wardrobe is empty), then writes a short social media caption about the find that mentions its price and platform. If nothing matches, it stops before calling the model and tells the user what to change: the price limit, the size, or the keywords.
+
 ---
 
 ## Tool Inventory
@@ -95,9 +97,17 @@
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** 
+**How the query is parsed:** With regex in `agent.py::_parse_query`, no model call, so parsing is free and gives the same result every run. The price comes from phrases like "under $30", "below 30", "up to $20" or a bare "$30". The size is only read after the word "size" ("size S", "size US 9", "size small"), so the "s" at the end of "tees" is never mistaken for a size. "small", "medium" and "large" become S, M and L, and a bare number like "size 9" becomes "US 9" because only shoes have number sizes in this data. Whatever is left, minus filler words like "looking" and "want", is the description. The result goes into `session["parsed"]` as `{"description", "size", "max_price"}`.
 
-**What moves through the session:** 
+**What moves through the session:** `run_agent` is a loop where each pass runs one step, writes its result into the session, and picks the next step from that result. Every tool reads its inputs back out of the session, never from the previous call's return value:
+
+1. `parse` reads `session["query"]` and writes `session["parsed"]`.
+2. `search` reads `session["parsed"]` and writes `session["search_results"]`. If that list is empty, it writes `session["error"]` and the loop ends.
+3. `select` reads `session["search_results"][0]` and writes `session["selected_item"]`.
+4. `suggest` reads `session["selected_item"]` and `session["wardrobe"]` and writes `session["outfit_suggestion"]`.
+5. `fit_card` reads `session["outfit_suggestion"]` and `session["selected_item"]` and writes `session["fit_card"]`.
+
+Each pass calls `trace.check_iterations(count)`, so a branch that never ends raises instead of looping forever.
 
 ---
 
@@ -111,23 +121,56 @@
 **One full query**
 
 ```
-$ python app.py ask '...'
+$ python app.py ask 'vintage graphic tee under $30'
+
+  Found:    Graphic Tee — 2003 Tour Bootleg Style — $24.0 on depop
+
+  Outfit:   Hey! That 2003 tour tee is an awesome find—definitely worth grabbing for $24! It’ll fit right into your grunge-streetwear vibe. 
+
+Here are two effortless ways to style it using what you already own:
+
+**Outfit 1: Casual & Edgy**
+Pair the Graphic Tee with your **Baggy straight-leg jeans, dark wash**. Add the **Black combat boots** and the **Black crossbody bag**. Throw your **Vintage black denim jacket** on top for that effortless, double-black denim texture.
+
+**Outfit 2: High-Contrast Streetwear**
+Tuck the Graphic Tee into your **Wide-leg khaki trousers** (cinched with the **Brown leather belt**). Layer the **Black cropped zip hoodie** unzipped over it, and finish the look with your **Chunky white sneakers** for a cool mix of vintage and modern street style.
+
+  Fit card: scored this 2003 tour bootleg tee on depop for just $24 and it's honestly the ultimate grunge-streetwear staple. been living in it paired with baggy dark wash denim and combat boots for that effortless edgy look, but it also looks so good dressed down with khaki trousers and sneakers. total vintage score!
+
+2 model calls this session, 592 prompt + 259 output tokens
+```
+
+And the branch, on a query that matches nothing:
+
+```
+$ python app.py ask 'designer ballgown size XXS under $5'
+
+  No listings matched 'designer ballgown' in size XXS under $5.00. To find something, raise your price limit above $5, or try a different size or leave the size out, or use broader keywords (for example 'jacket' or 'tee' instead of a specific style).
+
+0 model calls this session
 ```
 
 **The three tools, tested one at a time**
 
 ```
 $ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
+[{'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee or over a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_011', 'title': 'Low-Rise Cargo Pants — Khaki', 'description': 'Y2K era low-rise cargo pants. Lots of pockets. Khaki color, slightly distressed at the hems. Great for layering with a long tee.', 'category': 'bottoms', 'style_tags': ['y2k', 'cargo', '2000s', 'streetwear'], 'size': 'W29', 'condition': 'fair', 'price': 27.0, 'colors': ['khaki', 'tan'], 'brand': None, 'platform': 'poshmark'}, {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly faded navy crewneck. Genuinely vintage — not manufactured distressed. Ribbed cuffs and hem. No graphics, clean.', 'category': 'tops', 'style_tags': ['vintage', 'basics', 'oversized', 'classic'], 'size': 'XL (fits oversized)', 'condition': 'good', 'price': 20.0, 'colors': ['navy'], 'brand': None, 'platform': 'thredUp'}]
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+Hey there! Grab those Vintage Levi's 501 Jeans—at $38, they are an absolute steal. Here are two effortless ways to style them using pieces you already own:
 
+**Outfit 1: Casual & Cool**
+Pair the Vintage Levi's 501 Jeans with your White ribbed tank top tucked in, layered under the Vintage black denim jacket. Finish with your Chunky white sneakers and the Black crossbody bag for an easy, classic weekend look. 
+
+**Outfit 2: Streetwear Edge**
+Cinch the Vintage Levi's 501 Jeans with your Brown leather belt, and pair them with the Oversized grey crewneck sweatshirt. Throw on your Black combat boots to lean into that effortless, slouchy streetwear vibe.
 ```
 
 ```
-$ python -c "from tools import create_fit_card; ..."
-
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
+Nothing beats the fit of broken-in vintage denim, especially when you score them for just $38. Paired these thrifted Levi's 501s with my go-to white sneakers for that effortlessly cool 90s streetwear vibe. So glad I hunted these down on Depop before someone else did!
 ```
 
 ---
@@ -143,15 +186,15 @@ $ python -c "from tools import create_fit_card; ..."
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I had started `search_listings` with a 9-word stopword list (`a`, `an`, `and`, `with`, `under`, `over`, `of`, `in`, `for`). I asked Claude to make it a complete stopword list, then asked why stopwords are needed at all.
+- *What came back:* The full 179-word English list (the same words as NLTK's), and a test showing why it matters: without stopwords, `'a ballgown for the gala with a train'` returned 10 unrelated listings (a track jacket, cargo pants, a cardigan) only because their descriptions contain "a" and "the". With them, it returns `[]`.
+- *What I changed:* I replaced my short list with the full one. That test showed me stopwords aren't just about ranking: if they count, almost no query returns an empty list, so my loop's branch would never fire and criterion 2 would fail. Claude also pointed out that shopping words like "looking", "want" and "size" aren't on the standard list, so I strip those in `agent.py::_parse_query` instead.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* After writing my acceptance criterias, I asked Claude to read them and suggest me ways to make it sharper. 
+- *What came back:* Problems I hadn't seen. My "why" for criterion 1 argued for 5 of 5 even though the target is 4 of 5. My size criterion said "no listing has a size other than the one requested," which contradicts my own size rule because `S/M` and One Size are supposed to match "S". My fit card brand check ("names no brand") couldn't actually be checked by string matching, even though my "why" said I only count string-checkable things. It also pointed out that the size test would be too easy to miss if I only called `search_listings` directly, since that already handles the size traps.
+- *What I changed:* I tightened the fit card rules myself: hashtags and emoji don't count as sentences, the price has to match as a float, and the platform check is case-insensitive. Then I used Claude's suggestions to give the brand check a fixed list of brand names, list the exact queries and listing ids for each criterion, and run the size test through `python app.py ask`, so my query parser is part of what gets tested.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -242,7 +285,7 @@ that produced it:
 
 ```
 
-**On the MCP move:** 
+**On the MCP move:**
 
 ---
 
