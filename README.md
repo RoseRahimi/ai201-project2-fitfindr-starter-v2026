@@ -214,27 +214,30 @@ Nothing beats the fit of broken-in vintage denim, especially when you score them
      `python run_eval.py --label before` runs everything and writes the table
      into results/. Paste it here and fill in the verdicts. -->
 
-| Criterion                                               | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict      |
-| ------------------------------------------------------- | ------ | ----- | ----- | ----- | ----- | ----- | ------------ |
-| 1. A matching query completes all three tools           | 4 of 5 | FAIL  | FAIL  | FAIL  | FAIL  | FAIL  | MISSED (0/5) |
-| 2. An impossible query stops before the second tool     | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5)    |
-| 3. The selected item is the item the next tools receive | 5 of 5 | FAIL  | FAIL  | FAIL  | FAIL  | FAIL  | MISSED (0/5) |
-| 4. The fit card                                         | 4 of 5 | FAIL  | FAIL  | FAIL  | FAIL  | FAIL  | MISSED (0/5) |
-| 5. Size traps                                           | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5)    |
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
+| --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected item is the item the next tools receive | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. The fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Size traps | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**How the columns map to my criteria.** criteria.md defines each try as one query (or, for criterion 4, one listing), in the order listed there. `run_eval.py` ran every query 5 times with the cache off, so each query was run 5 times. A try is PASS only if all 5 runs of that query passed. Results: [results/run_2026-11-09_1049_before.md](results/run_2026-11-09_1049_before.md) for criteria 1, 2, 3 and 5, and [results/fitcard_2026-11-09_1047_before.md](results/fitcard_2026-11-09_1047_before.md) for criterion 4.
+**How the columns map to my criteria.** criteria.md defines each try as one query (or, for criterion 4, one listing), in the order listed there. `run_eval.py` ran every query 5 times with the cache off. A try is PASS only if all 5 runs of that query passed, so criteria 1, 2, 3 and 5 rest on 25 runs each. Results: [results/run_2026-11-09_1105_before.md](results/run_2026-11-09_1105_before.md) for criteria 1, 2, 3 and 5, and [results/fitcard_2026-11-09_1105_before.md](results/fitcard_2026-11-09_1105_before.md) for criterion 4.
 
-**This run was made with an API key that the model rejected** (`401 UNAUTHENTICATED: API key not valid`), so every model call failed. An earlier run, [results/run_2026-11-09_1048_before.md](results/run_2026-11-09_1048_before.md), is also invalid: it ran under a Python without the `mcp` package, so all 80 tries stopped at search (see "On the MCP move" below). I kept both files as the honest record.
+**Earlier invalid attempts, kept as the record.** Three earlier "before" files don't measure the agent. [run_2026-11-09_1048_before.md](results/run_2026-11-09_1048_before.md) ran under a Python without the `mcp` package, so all 80 tries stopped at search with `No module named 'mcp'`. [run_2026-11-09_1049_before.md](results/run_2026-11-09_1049_before.md) and [fitcard_2026-11-09_1047_before.md](results/fitcard_2026-11-09_1047_before.md) ran with an API key the service rejected (`401 UNAUTHENTICATED`), so every model call failed and the agent stopped at `suggest_outfit` with its model-unavailable message. I replaced the key and reran everything with `.venv/bin/python`; the table above is that rerun.
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
 
-Criterion 1 and 3, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::run_agent`:
+Criteria 1 and 3, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::run_agent`:
 
 ```
-- stopped early: yes — Found Graphic Tee — 2003 Tour Bootleg Style, but couldn't write an outfit: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
+- stopped early: no
 - selected_item: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
 - search_results: 10
+
+Fit card:
+Still can’t believe I scored this 2003 tour bootleg tee for just $24 on Depop. It’s got that beat-up grunge vibe that goes with literally everything. Honestly lived in it all week styled with baggy denim and combat boots.
 
 [1] parse_query
       in:  vintage graphic tee under $30
@@ -247,8 +250,11 @@ Criterion 1 and 3, query 1, run 1. Produced by `run_eval.py::main` calling `agen
       out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
       →    id lst_006
 [4] suggest_outfit
+      in:  item_id=lst_006, wardrobe_items=10
+      out: Hey there! That 2003 tour bootleg tee is an absolute steal for $24 and fits right into your grunge streetwear …
+[5] create_fit_card
       in:  item_id=lst_006
-      →    model unavailable, stopping
+      out: Still can’t believe I scored this 2003 tour bootleg tee for just $24 on Depop. It’s got that beat-up grunge vi…
 ```
 
 Criterion 2, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::run_agent`:
@@ -267,20 +273,15 @@ Criterion 2, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::
       →    branch: empty, stopping
 ```
 
-Criterion 4, listing 1 (lst_001). Produced by `eval_fitcard.py::main` calling `tools.py::suggest_outfit` and `tools.py::create_fit_card`:
+Criterion 4, listing 2 (lst_002, brand None, $18.0, depop). Produced by `eval_fitcard.py::main` calling `tools.py::suggest_outfit` and `tools.py::create_fit_card`:
 
 ```
-Fit card:
-(model unavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.)
+Score this cute Y2K butterfly baby tee on Depop for just $18 and honestly, I'm obsessed. I've been styling it with baggy jeans and my trusty black jacket for that off-duty model vibe, but it looks just as good dressed down with trousers and combat boots. Such a good little thrift find!
 ```
 
 Criterion 5, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::run_agent`:
 
 ```
-- stopped early: yes — Found Y2K Baby Tee — Butterfly Print, but couldn't write an outfit: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
-- selected_item: Y2K Baby Tee — Butterfly Print ($18.0, depop)
-- search_results: 2
-
 [1] parse_query
       in:  tees size S
       out: {'description': 'tees', 'size': 'S', 'max_price': None}
@@ -289,6 +290,8 @@ Criterion 5, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::
       out: 2 items: Y2K Baby Tee — Butterfly Print, Mesh Long-Sleeve Top — Black
       →    branch: results, continuing
 ```
+
+Both results are size `S/M`, which contains `S` as a whole token.
 
 ---
 
@@ -310,26 +313,30 @@ Criterion 5, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::
      Look for a pattern. Three misses on the same tool is one problem, not
      three. -->
 
-| # | Criterion                                            | Target | Verdict      | How I decided                                                                                                                                                                                                                                                                                                                                                       |
-| - | ---------------------------------------------------- | ------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 | A matching query completes all three tools           | 4 of 5 | MISSED (0/5) | All 25 runs stopped at `suggest_outfit` with the key error. `session["error"]` was set and `session["fit_card"]` stayed None every time.                                                                                                                                                                                                                      |
-| 2 | An impossible query stops before the second tool     | 5 of 5 | MET (5/5)    | All 25 runs stopped right after search. `outfit_suggestion` and `fit_card` were None, and every message named price, size or keywords to change.                                                                                                                                                                                                                |
-| 3 | The selected item is the item the next tools receive | 5 of 5 | MISSED (0/5) | The id half held in all 25 runs: the `select_item` id matched the `suggest_outfit` trace id every time. The fit card half could not be checked because no card was written. Counting an unchecked half as a pass is the generous reading, so I'm not claiming MET.                                                                                              |
-| 4 | The fit card                                         | 4 of 5 | MISSED (0/5) | No card was produced for any of the 5 listings. Each "card" is the model-unavailable message.                                                                                                                                                                                                                                                                       |
-| 5 | Size traps                                           | 5 of 5 | MET (5/5)    | The trace shows the requested size parsed correctly in all 25 runs, and every result had the size as a whole token or was One Size. The run log records only the result count, not each result's size, so I checked the sizes by calling `search_listings` directly with the same parsed inputs (it makes no model calls and returns the same results every run). |
+| # | Criterion | Target | Verdict | How I decided |
+| - | --------- | ------ | ------- | ------------- |
+| 1 | A matching query completes all three tools | 4 of 5 | MET (5/5) | All 25 runs ended with `session["error"]` None and a non-empty `session["fit_card"]`. |
+| 2 | An impossible query stops before the second tool | 5 of 5 | MET (5/5) | All 25 runs stopped right after search, with `outfit_suggestion` and `fit_card` None and an error naming price, size or keywords. |
+| 3 | The selected item is the item the next tools receive | 5 of 5 | MET (5/5) | In all 25 runs the `select_item` id matched the `suggest_outfit` trace id, and no card quoted a dollar figure or platform different from the selected listing's. |
+| 4 | The fit card | 4 of 5 | MET (5/5) | All 5 cards are 3 sentences, contain the exact price, and name the platform. None of the 3 brand-None cards names a brand from my list. 0 of 5 have a wrong price or invented brand. |
+| 5 | Size traps | 5 of 5 | MET (5/5) | All 25 runs parsed the requested size, and every result had it as a whole token or was One Size. The run log records only result counts and the top 3 titles, so I checked each result's size by calling `search_listings` with the same parsed inputs (it makes no model call and returns the same results every run). |
 
 **Diagnoses**
 
-**The pattern: one problem, not three.** Criteria 1 and 4, the fit card half of criterion 3, and the empty-wardrobe diagnostic run all failed in the same place and in the same way.
+**No criterion missed.** Every target held on every run: 105 agent runs plus 5 fit cards, all with the cache off.
 
-- **Where:** the model call. The first one in each run is `tools.py::suggest_outfit` calling `generate.py::generate`.
-- **Mechanism:** the API key in `.env` is rejected by the service with `401 UNAUTHENTICATED`. `generate()` doesn't retry that, because it isn't a rate limit, and raises `ModelUnavailable`. `agent.py::run_agent` catches it, writes `session["error"]` and stops. So the run ends before `create_fit_card`, and criteria 1, 3 and 4 have no card to score.
-- **What did work:** the tools, the loop's branch and the session. Search ran over MCP in every run, the branch picked the right path in all 80 runs, and the selected item's id reached `suggest_outfit` unchanged. The error handler turned the failure into a readable message instead of a crash.
-- **What this means:** these misses say nothing yet about my prompts or the model's output. The fix is a valid key, not a code change, so this run can't point at an improvement. The criteria that depend on the model need a rerun with a working key before they can be read.
+**Were my targets low?** Partly, yes.
 
-**The earlier invalid run (10:48)** was the same kind of failure, in a different place: the environment, not my code. Every try stopped at search with `Couldn't call 'search_listings' over MCP: No module named 'mcp'`. `mcp_client.py` starts the server with the same Python that runs the caller (`sys.executable`). I had run `run_eval.py` with a Python outside the project's `.venv`, where `mcp` isn't installed, so the server process couldn't import it. Running with `.venv/bin/python` fixed it in the 10:49 run.
+- Criteria 2 and 5 are on the deterministic path (regex parsing and search, no model call), so 5 of 5 was the only sensible target and they were never likely to miss.
+- Criteria 1 and 4 allowed one miss for model randomness and quota errors. They got 25 of 25 and 5 of 5, so the allowance wasn't needed this time. I'd tighten **criterion 4**: every card came out exactly 3 sentences with the right price and platform, so 4 of 5 is easy. A stricter version would also check that cards for different items don't read the same way (see below).
+- Criterion 5 has an evidence gap: its pass condition depends on each result's size, but the run log doesn't record sizes, so it can't be fully scored from the log alone.
 
-**Met criteria and whether the targets were low.** Criteria 2 and 5 met 5 of 5. Both are on the deterministic path (regex parsing and search, no model call), so 5 of 5 is what they should get, and I set them that way on purpose. If I tightened one, it would be criterion 5: its pass condition depends on every result's size, but the run log records only how many results came back, so I had to check the sizes outside the run. I'd make the trace log each result's size, so the criterion can be scored from the run log alone.
+**What the criteria didn't catch.** Reading the output itself turned up two patterns that none of my five criteria measure:
+
+1. **`suggest_outfit` breaks its own length promise.** My Tool Inventory says it returns "under about 120 words", and the prompt says "Keep it under 120 words." In this run, 23 of 60 outfit suggestions (38%) went over 120 words (median 119, longest 146). The mechanism shows in the output: the model spends words on a greeting ("Hey there! That 2003 tour bootleg tee is an absolute steal...") and a sign-off ("Enjoy rocking it!"), then writes two full outfits, and the single "under 120 words" line at the end of the prompt doesn't hold it back. The place is the model's output, but the cause is my prompt.
+2. **Fit cards open the same way.** 33 of 60 cards (55%) start with "Score this", "Scored this" or "Scored these". Every card passes criterion 4, but for different items they read like a template.
+
+Pattern 1 is the one I'm treating as the diagnosis for the improvement. It is a tool not doing what its spec promises, and it is countable from the run log.
 
 ---
 
@@ -407,7 +414,7 @@ $ python app.py ask 'baggy jeans'
 1 model calls this session
 ```
 
-**On the MCP move:** I moved `search_listings` onto the MCP server (`mcp_server.py`), because it is the one tool that doesn't call the model. `run_agent` now calls it through `mcp_client.call_tool`, which shows up as `search_listings (via MCP)` in the trace. `python mcp_client.py` lists the tool with `description: string`, `size: string (optional)` and `max_price: number (optional)`, matching my Tool Inventory. I compared the direct call and the MCP call on 6 inputs, including two that return nothing, and they returned identical lists, still with `price` as a float. Nothing about the return value changed, so my tool was already returning plain JSON-safe data. The one place the seam showed was the environment: the server is a separate process started with the caller's Python, so running the eval outside `.venv` broke every search with `No module named 'mcp'` (see Diagnoses). I also added a handler so an MCP failure becomes a message in `session["error"]` instead of a crash.
+**On the MCP move:** I moved `search_listings` onto the MCP server (`mcp_server.py`), because it is the one tool that doesn't call the model. `run_agent` now calls it through `mcp_client.call_tool`, which shows up as `search_listings (via MCP)` in the trace. `python mcp_client.py` lists the tool with `description: string`, `size: string (optional)` and `max_price: number (optional)`, matching my Tool Inventory. I compared the direct call and the MCP call on 6 inputs, including two that return nothing, and they returned identical lists, still with `price` as a float. Nothing about the return value changed, so my tool was already returning plain JSON-safe data. The one place the seam showed was the environment: the server is a separate process started with the caller's Python, so running the eval outside `.venv` broke every search with `No module named 'mcp'` (see "Earlier invalid attempts" under Run Log, Before). I also added a handler so an MCP failure becomes a message in `session["error"]` instead of a crash.
 
 ---
 
