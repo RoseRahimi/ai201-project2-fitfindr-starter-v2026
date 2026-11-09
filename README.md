@@ -216,17 +216,78 @@ Nothing beats the fit of broken-in vintage denim, especially when you score them
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 | --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
-| 1.        |        |       |       |       |       |       |         |
-| 2.        |        |       |       |       |       |       |         |
-| 3.        |        |       |       |       |       |       |         |
-| 4.        |        |       |       |       |       |       |         |
-| 5.        |        |       |       |       |       |       |         |
+| 1. A matching query completes all three tools | 4 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected item is the item the next tools receive | 5 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
+| 4. The fit card | 4 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
+| 5. Size traps | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+**How the columns map to my criteria.** criteria.md defines each try as one query (or, for criterion 4, one listing), in the order listed there. `run_eval.py` ran every query 5 times with the cache off, so each query was run 5 times. A try is PASS only if all 5 runs of that query passed. Results: [results/run_2026-11-09_1049_before.md](results/run_2026-11-09_1049_before.md) for criteria 1, 2, 3 and 5, and [results/fitcard_2026-11-09_1047_before.md](results/fitcard_2026-11-09_1047_before.md) for criterion 4.
+
+**This run was made with an API key that the model rejected** (`401 UNAUTHENTICATED: API key not valid`), so every model call failed. An earlier run, [results/run_2026-11-09_1048_before.md](results/run_2026-11-09_1048_before.md), is also invalid: it ran under a Python without the `mcp` package, so all 80 tries stopped at search (see "On the MCP move" below). I kept both files as the honest record.
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
 
+Criterion 1 and 3, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::run_agent`:
+
+```
+- stopped early: yes — Found Graphic Tee — 2003 Tour Bootleg Style, but couldn't write an outfit: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
+- selected_item: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+- search_results: 10
+
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey … +7 more
+      →    branch: results, continuing
+[3] select_item
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    id lst_006
+[4] suggest_outfit
+      in:  item_id=lst_006
+      →    model unavailable, stopping
 ```
 
+Criterion 2, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::run_agent`:
+
+```
+- stopped early: yes — No listings matched 'designer ballgown' in size XXS under $5.00. To find something, raise your price limit above $5, or try a different size or leave the size out, or use broader keywords (for example 'jacket' or 'tee' instead of a specific style).
+- selected_item: (none)
+- search_results: 0
+
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    branch: empty, stopping
+```
+
+Criterion 4, listing 1 (lst_001). Produced by `eval_fitcard.py::main` calling `tools.py::suggest_outfit` and `tools.py::create_fit_card`:
+
+```
+Fit card:
+(model unavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.)
+```
+
+Criterion 5, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::run_agent`:
+
+```
+- stopped early: yes — Found Y2K Baby Tee — Butterfly Print, but couldn't write an outfit: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
+- selected_item: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+- search_results: 2
+
+[1] parse_query
+      in:  tees size S
+      out: {'description': 'tees', 'size': 'S', 'max_price': None}
+[2] search_listings (via MCP)
+      in:  {'description': 'tees', 'size': 'S', 'max_price': None}
+      out: 2 items: Y2K Baby Tee — Butterfly Print, Mesh Long-Sleeve Top — Black
+      →    branch: results, continuing
 ```
 
 ---
@@ -251,13 +312,24 @@ that produced it:
 
 | # | Criterion | Target | Verdict | How I decided |
 | - | --------- | ------ | ------- | ------------- |
-| 1 |           |        |         |               |
-| 2 |           |        |         |               |
-| 3 |           |        |         |               |
-| 4 |           |        |         |               |
-| 5 |           |        |         |               |
+| 1 | A matching query completes all three tools | 4 of 5 | MISSED (0/5) | All 25 runs stopped at `suggest_outfit` with the key error. `session["error"]` was set and `session["fit_card"]` stayed None every time. |
+| 2 | An impossible query stops before the second tool | 5 of 5 | MET (5/5) | All 25 runs stopped right after search. `outfit_suggestion` and `fit_card` were None, and every message named price, size or keywords to change. |
+| 3 | The selected item is the item the next tools receive | 5 of 5 | MISSED (0/5) | The id half held in all 25 runs: the `select_item` id matched the `suggest_outfit` trace id every time. The fit card half could not be checked because no card was written. Counting an unchecked half as a pass is the generous reading, so I'm not claiming MET. |
+| 4 | The fit card | 4 of 5 | MISSED (0/5) | No card was produced for any of the 5 listings. Each "card" is the model-unavailable message. |
+| 5 | Size traps | 5 of 5 | MET (5/5) | The trace shows the requested size parsed correctly in all 25 runs, and every result had the size as a whole token or was One Size. The run log records only the result count, not each result's size, so I checked the sizes by calling `search_listings` directly with the same parsed inputs (it makes no model calls and returns the same results every run). |
 
 **Diagnoses**
+
+**The pattern: one problem, not three.** Criteria 1 and 4, the fit card half of criterion 3, and the empty-wardrobe diagnostic run all failed in the same place and in the same way.
+
+- **Where:** the model call. The first one in each run is `tools.py::suggest_outfit` calling `generate.py::generate`.
+- **Mechanism:** the API key in `.env` is rejected by the service with `401 UNAUTHENTICATED`. `generate()` doesn't retry that, because it isn't a rate limit, and raises `ModelUnavailable`. `agent.py::run_agent` catches it, writes `session["error"]` and stops. So the run ends before `create_fit_card`, and criteria 1, 3 and 4 have no card to score.
+- **What did work:** the tools, the loop's branch and the session. Search ran over MCP in every run, the branch picked the right path in all 80 runs, and the selected item's id reached `suggest_outfit` unchanged. The error handler turned the failure into a readable message instead of a crash.
+- **What this means:** these misses say nothing yet about my prompts or the model's output. The fix is a valid key, not a code change, so this run can't point at an improvement. The criteria that depend on the model need a rerun with a working key before they can be read.
+
+**The earlier invalid run (10:48)** was the same kind of failure, in a different place: the environment, not my code. Every try stopped at search with `Couldn't call 'search_listings' over MCP: No module named 'mcp'`. `mcp_client.py` starts the server with the same Python that runs the caller (`sys.executable`). I had run `run_eval.py` with a Python outside the project's `.venv`, where `mcp` isn't installed, so the server process couldn't import it. Running with `.venv/bin/python` fixed it in the 10:49 run.
+
+**Met criteria and whether the targets were low.** Criteria 2 and 5 met 5 of 5. Both are on the deterministic path (regex parsing and search, no model call), so 5 of 5 is what they should get, and I set them that way on purpose. If I tightened one, it would be criterion 5: its pass condition depends on every result's size, but the run log records only how many results came back, so I had to check the sizes outside the run. I'd make the trace log each result's size, so the criterion can be scored from the run log alone.
 
 ---
 
@@ -335,7 +407,7 @@ $ python app.py ask 'baggy jeans'
 1 model calls this session
 ```
 
-**On the MCP move:**
+**On the MCP move:** I moved `search_listings` onto the MCP server (`mcp_server.py`), because it is the one tool that doesn't call the model. `run_agent` now calls it through `mcp_client.call_tool`, which shows up as `search_listings (via MCP)` in the trace. `python mcp_client.py` lists the tool with `description: string`, `size: string (optional)` and `max_price: number (optional)`, matching my Tool Inventory. I compared the direct call and the MCP call on 6 inputs, including two that return nothing, and they returned identical lists, still with `price` as a float. Nothing about the return value changed, so my tool was already returning plain JSON-safe data. The one place the seam showed was the environment: the server is a separate process started with the caller's Python, so running the eval outside `.venv` broke every search with `No module named 'mcp'` (see Diagnoses). I also added a handler so an MCP failure becomes a message in `session["error"]` instead of a crash.
 
 ---
 
