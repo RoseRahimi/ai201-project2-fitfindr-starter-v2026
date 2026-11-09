@@ -217,7 +217,8 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
             f"Here is what they already own:\n{closet}\n\n"
             "Suggest one or two outfits that pair the new item with specific pieces "
             "from their wardrobe. Name the wardrobe pieces exactly as listed. "
-            "Keep it under 120 words."
+            "Hard limit: 100 words in total. No greeting, no sign-off, and no "
+            "opinion on whether to buy it. Start directly with the first outfit."
         )
 
     response = generate(prompt, system="You are a practical, friendly personal stylist.")
