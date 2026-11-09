@@ -276,13 +276,63 @@ that produced it:
 **Happy path**
 
 ```
-
+$ python app.py ask 'vintage graphic tee under $30' --trace
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey … +7 more
+      →    branch: results, continuing
+[3] select_item
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      →    id lst_006
+[4] suggest_outfit
+      in:  item_id=lst_006, wardrobe_items=10
+      out: Hey there! That 2003 tour graphic tee is such a cool find and will add an effortless edge to your closet. For …
+[5] create_fit_card
+      in:  item_id=lst_006
+      out: Finally scored this sick 2003 tour graphic tee on Depop for just $24, and it’s giving major grunge energy. Obs…
 ```
 
 **Empty search**
 
 ```
+$ python app.py ask 'designer ballgown size XXS under $5' --trace
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    branch: empty, stopping
 
+  No listings matched 'designer ballgown' in size XXS under $5.00. To find something, raise your price limit above $5, or try a different size or leave the size out, or use broader keywords (for example 'jacket' or 'tee' instead of a specific style).
+
+0 model calls this session
+```
+
+**Model unavailable** (run with an invalid key passed in as GEMINI_API_KEY for that one command)
+
+```
+$ python app.py ask 'baggy jeans'
+[1] parse_query
+      in:  baggy jeans
+      out: {'description': 'baggy jeans', 'size': None, 'max_price': None}
+[2] search_listings (via MCP)
+      in:  {'description': 'baggy jeans', 'size': None, 'max_price': None}
+      out: 3 items: Baggy Carpenter Jeans — Dark Wash, Straight Leg Black Jeans — Faded, Vintage Levi's 501 Jeans — Medium Wash
+      →    branch: results, continuing
+[3] select_item
+      out: Baggy Carpenter Jeans — Dark Wash ($36.0, depop)
+      →    id lst_031
+[4] suggest_outfit
+      in:  item_id=lst_031
+      →    model unavailable, stopping
+
+  Found Baggy Carpenter Jeans — Dark Wash, but couldn't write an outfit: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
+
+1 model calls this session
 ```
 
 **On the MCP move:**
