@@ -17,7 +17,8 @@ import re
 
 import config
 import trace
-from tools import search_listings, suggest_outfit, create_fit_card
+from tools import suggest_outfit, create_fit_card
+from mcp_client import call_tool, MCPError
 from generate import ModelUnavailable
 
 
@@ -189,34 +190,68 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         if next_step == "parse":
             session["parsed"] = _parse_query(session["query"])
+            trace.step("parse_query", inputs=session["query"], returned=str(session["parsed"]))
             next_step = "search"
 
         elif next_step == "search":
             parsed = session["parsed"]
-            session["search_results"] = search_listings(
-                parsed["description"], size=parsed["size"], max_price=parsed["max_price"]
-            )
+            args = {
+                "description": parsed["description"],
+                "size": parsed["size"],
+                "max_price": parsed["max_price"],
+            }
+            # search_listings now runs on the MCP server (mcp_server.py), not in-process
+            try:
+                session["search_results"] = call_tool("search_listings", args)
+            except MCPError as exc:
+                session["error"] = f"The search service couldn't be reached, so nothing was searched. {exc}"
+                trace.step("search_listings (via MCP)", inputs=str(args), note="MCP call failed, stopping")
+                next_step = "done"
+                continue
             # THE BRANCH: nothing found means stop here, before any model call
             if not session["search_results"]:
                 session["error"] = _no_results_message(session["parsed"])
+                trace.step("search_listings (via MCP)", inputs=str(args),
+                           returned=session["search_results"], note="branch: empty, stopping")
                 next_step = "done"
             else:
+                trace.step("search_listings (via MCP)", inputs=str(args),
+                           returned=session["search_results"], note="branch: results, continuing")
                 next_step = "select"
 
         elif next_step == "select":
             session["selected_item"] = session["search_results"][0]
+            trace.step("select_item", returned=session["selected_item"],
+                       note=f"id {session['selected_item']['id']}")
             next_step = "suggest"
 
         elif next_step == "suggest":
-            session["outfit_suggestion"] = suggest_outfit(
-                session["selected_item"], session["wardrobe"]
+            item = session["selected_item"]
+            try:
+                session["outfit_suggestion"] = suggest_outfit(item, session["wardrobe"])
+            except ModelUnavailable as exc:
+                session["error"] = f"Found {item.get('title')}, but couldn't write an outfit: {exc}"
+                trace.step("suggest_outfit", inputs=f"item_id={item['id']}", note="model unavailable, stopping")
+                next_step = "done"
+                continue
+            trace.step(
+                "suggest_outfit",
+                inputs=f"item_id={item['id']}, "
+                       f"wardrobe_items={len((session['wardrobe'] or {}).get('items') or [])}",
+                returned=session["outfit_suggestion"],
             )
             next_step = "fit_card"
 
         elif next_step == "fit_card":
-            session["fit_card"] = create_fit_card(
-                session["outfit_suggestion"], session["selected_item"]
-            )
+            item = session["selected_item"]
+            try:
+                session["fit_card"] = create_fit_card(session["outfit_suggestion"], item)
+            except ModelUnavailable as exc:
+                session["error"] = f"Found {item.get('title')} and an outfit, but couldn't write the fit card: {exc}"
+                trace.step("create_fit_card", inputs=f"item_id={item['id']}", note="model unavailable, stopping")
+                next_step = "done"
+                continue
+            trace.step("create_fit_card", inputs=f"item_id={item['id']}", returned=session["fit_card"])
             next_step = "done"
 
     return session
