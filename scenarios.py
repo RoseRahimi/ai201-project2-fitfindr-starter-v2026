@@ -13,41 +13,52 @@ Three scenarios are filled in to show the shape. Add or change whatever your
 own criteria need — these are a starting point, not a fixed set.
 """
 
-SCENARIOS = [
-    {
-        # A query the data can match. Criterion 1.
-        "name": "matching query completes",
-        "query": "vintage graphic tee under $30",
-        "wardrobe": "example",
-        "criterion": 1,
-    },
-    {
-        # A query nothing can match. Criterion 2 — the branch.
-        "name": "impossible query stops early",
-        "query": "designer ballgown size XXS under $5",
-        "wardrobe": "example",
-        "criterion": 2,
-    },
-    {
+# Criteria 1 and 3 are scored from the same runs: criterion 1 reads whether the
+# run finished with a fit card, criterion 3 reads the trace and the card for the
+# selected item's id, price and platform.
+#
+# Criterion 4 targets five specific listing ids rather than queries, so it is not
+# here. It runs from eval_fitcard.py.
+
+_CRITERION_1_AND_3 = [
+    "vintage graphic tee under $30",
+    "baggy jeans",
+    "denim jacket size S",
+    "chunky cardigan",
+    "white sneakers under $50",
+]
+
+_CRITERION_2 = [
+    "designer ballgown size XXS under $5",
+    "leather bomber under $10",
+    "jeans size L",
+    "sweatshirt size S",
+    "wedding tuxedo",
+]
+
+_CRITERION_5 = [
+    "tees size S",
+    "top size S",
+    "blazer size S",
+    "jacket size L",
+    "graphic tee size L",
+]
+
+SCENARIOS = (
+    [{"name": f"c1+3 completes: {q}", "query": q, "wardrobe": "example", "criterion": 1}
+     for q in _CRITERION_1_AND_3]
+    + [{"name": f"c2 stops early: {q}", "query": q, "wardrobe": "example", "criterion": 2}
+       for q in _CRITERION_2]
+    + [{"name": f"c5 size trap: {q}", "query": q, "wardrobe": "example", "criterion": 5}
+       for q in _CRITERION_5]
+    + [{
         # A user with nothing saved. One of unit 4's three failure modes.
         "name": "empty wardrobe",
         "query": "denim jacket under $50",
         "wardrobe": "empty",
         "criterion": None,
-    },
-    # TODO: add what your criteria 3, 4 and 5 need.
-    #
-    # Set "criterion" to the number in criteria.md that the scenario tests.
-    # "criterion": None means a diagnostic run — useful to have, but it isn't
-    # one of your five, and run_eval.py marks it as such in the table.
-    #
-    # For a state criterion, any normal query works — what you're checking is
-    # what ends up in the session, not what the user typed.
-    #
-    # For a fit-card criterion, you probably want the SAME query listed more
-    # than once, or several different items, depending on what your criterion
-    # actually says.
-]
+    }]
+)
 
 WARDROBES = ("example", "empty")
 
