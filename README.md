@@ -192,7 +192,7 @@ Nothing beats the fit of broken-in vintage denim, especially when you score them
 
 **Moment 2**
 
-- *What I asked for:* After writing my acceptance criterias, I asked Claude to read them and suggest me ways to make it sharper. 
+- *What I asked for:* After writing my acceptance criterias, I asked Claude to read them and suggest me ways to make it sharper.
 - *What came back:* Problems I hadn't seen. My "why" for criterion 1 argued for 5 of 5 even though the target is 4 of 5. My size criterion said "no listing has a size other than the one requested," which contradicts my own size rule because `S/M` and One Size are supposed to match "S". My fit card brand check ("names no brand") couldn't actually be checked by string matching, even though my "why" said I only count string-checkable things. It also pointed out that the size test would be too easy to miss if I only called `search_listings` directly, since that already handles the size traps.
 - *What I changed:* I tightened the fit card rules myself: hashtags and emoji don't count as sentences, the price has to match as a float, and the platform check is case-insensitive. Then I used Claude's suggestions to give the brand check a fixed list of brand names, list the exact queries and listing ids for each criterion, and run the size test through `python app.py ask`, so my query parser is part of what gets tested.
 
@@ -214,13 +214,13 @@ Nothing beats the fit of broken-in vintage denim, especially when you score them
      `python run_eval.py --label before` runs everything and writes the table
      into results/. Paste it here and fill in the verdicts. -->
 
-| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
-| --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
-| 1. A matching query completes all three tools | 4 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
-| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 3. The selected item is the item the next tools receive | 5 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
-| 4. The fit card | 4 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
-| 5. Size traps | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| Criterion                                               | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict      |
+| ------------------------------------------------------- | ------ | ----- | ----- | ----- | ----- | ----- | ------------ |
+| 1. A matching query completes all three tools           | 4 of 5 | FAIL  | FAIL  | FAIL  | FAIL  | FAIL  | MISSED (0/5) |
+| 2. An impossible query stops before the second tool     | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5)    |
+| 3. The selected item is the item the next tools receive | 5 of 5 | FAIL  | FAIL  | FAIL  | FAIL  | FAIL  | MISSED (0/5) |
+| 4. The fit card                                         | 4 of 5 | FAIL  | FAIL  | FAIL  | FAIL  | FAIL  | MISSED (0/5) |
+| 5. Size traps                                           | 5 of 5 | PASS  | PASS  | PASS  | PASS  | PASS  | MET (5/5)    |
 
 **How the columns map to my criteria.** criteria.md defines each try as one query (or, for criterion 4, one listing), in the order listed there. `run_eval.py` ran every query 5 times with the cache off, so each query was run 5 times. A try is PASS only if all 5 runs of that query passed. Results: [results/run_2026-11-09_1049_before.md](results/run_2026-11-09_1049_before.md) for criteria 1, 2, 3 and 5, and [results/fitcard_2026-11-09_1047_before.md](results/fitcard_2026-11-09_1047_before.md) for criterion 4.
 
@@ -310,13 +310,13 @@ Criterion 5, query 1, run 1. Produced by `run_eval.py::main` calling `agent.py::
      Look for a pattern. Three misses on the same tool is one problem, not
      three. -->
 
-| # | Criterion | Target | Verdict | How I decided |
-| - | --------- | ------ | ------- | ------------- |
-| 1 | A matching query completes all three tools | 4 of 5 | MISSED (0/5) | All 25 runs stopped at `suggest_outfit` with the key error. `session["error"]` was set and `session["fit_card"]` stayed None every time. |
-| 2 | An impossible query stops before the second tool | 5 of 5 | MET (5/5) | All 25 runs stopped right after search. `outfit_suggestion` and `fit_card` were None, and every message named price, size or keywords to change. |
-| 3 | The selected item is the item the next tools receive | 5 of 5 | MISSED (0/5) | The id half held in all 25 runs: the `select_item` id matched the `suggest_outfit` trace id every time. The fit card half could not be checked because no card was written. Counting an unchecked half as a pass is the generous reading, so I'm not claiming MET. |
-| 4 | The fit card | 4 of 5 | MISSED (0/5) | No card was produced for any of the 5 listings. Each "card" is the model-unavailable message. |
-| 5 | Size traps | 5 of 5 | MET (5/5) | The trace shows the requested size parsed correctly in all 25 runs, and every result had the size as a whole token or was One Size. The run log records only the result count, not each result's size, so I checked the sizes by calling `search_listings` directly with the same parsed inputs (it makes no model calls and returns the same results every run). |
+| # | Criterion                                            | Target | Verdict      | How I decided                                                                                                                                                                                                                                                                                                                                                       |
+| - | ---------------------------------------------------- | ------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 | A matching query completes all three tools           | 4 of 5 | MISSED (0/5) | All 25 runs stopped at `suggest_outfit` with the key error. `session["error"]` was set and `session["fit_card"]` stayed None every time.                                                                                                                                                                                                                      |
+| 2 | An impossible query stops before the second tool     | 5 of 5 | MET (5/5)    | All 25 runs stopped right after search. `outfit_suggestion` and `fit_card` were None, and every message named price, size or keywords to change.                                                                                                                                                                                                                |
+| 3 | The selected item is the item the next tools receive | 5 of 5 | MISSED (0/5) | The id half held in all 25 runs: the `select_item` id matched the `suggest_outfit` trace id every time. The fit card half could not be checked because no card was written. Counting an unchecked half as a pass is the generous reading, so I'm not claiming MET.                                                                                              |
+| 4 | The fit card                                         | 4 of 5 | MISSED (0/5) | No card was produced for any of the 5 listings. Each "card" is the model-unavailable message.                                                                                                                                                                                                                                                                       |
+| 5 | Size traps                                           | 5 of 5 | MET (5/5)    | The trace shows the requested size parsed correctly in all 25 runs, and every result had the size as a whole token or was One Size. The run log records only the result count, not each result's size, so I checked the sizes by calling `search_listings` directly with the same parsed inputs (it makes no model calls and returns the same results every run). |
 
 **Diagnoses**
 
