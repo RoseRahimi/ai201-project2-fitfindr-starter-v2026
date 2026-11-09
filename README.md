@@ -334,7 +334,7 @@ Both results are size `S/M`, which contains `S` as a whole token.
 **What the criteria didn't catch.** Reading the output itself turned up two patterns that none of my five criteria measure:
 
 1. **`suggest_outfit` breaks its own length promise.** My Tool Inventory says it returns "under about 120 words", and the prompt says "Keep it under 120 words." In this run, 23 of 60 outfit suggestions (38%) went over 120 words (median 119, longest 146). The mechanism shows in the output: the model spends words on a greeting ("Hey there! That 2003 tour bootleg tee is an absolute steal...") and a sign-off ("Enjoy rocking it!"), then writes two full outfits, and the single "under 120 words" line at the end of the prompt doesn't hold it back. The place is the model's output, but the cause is my prompt.
-2. **Fit cards open the same way.** 33 of 60 cards (55%) start with "Score this", "Scored this" or "Scored these". Every card passes criterion 4, but for different items they read like a template.
+2. **Fit cards open the same way.** 36 of 60 cards (60%) open with "Score" or "Scored" ("Score this", "Scored these", "Score!"). Every card passes criterion 4, but for different items they read like a template.
 
 Pattern 1 is the one I'm treating as the diagnosis for the improvement. It is a tool not doing what its spec promises, and it is countable from the run log.
 
@@ -425,32 +425,66 @@ $ python app.py ask 'baggy jeans'
 
      `python run_eval.py --label after` -->
 
-**What I changed:**
+**What I changed:** one prompt, in `tools.py::suggest_outfit`, the branch used when the wardrobe has items (commit `8bf1218`). The last line of the prompt went from
 
-**Which failure it was meant to fix:**
+```
+Keep it under 120 words.
+```
+
+to
+
+```
+Hard limit: 100 words in total. No greeting, no sign-off, and no opinion on whether to buy it. Start directly with the first outfit.
+```
+
+I aimed at 100 rather than 120 so normal variation still lands under the 120 my Tool Inventory promises. I left the empty-wardrobe prompt alone, because all 5 of its outputs in the before run were already under 120 words. Nothing else changed: same scenarios, same model, temperature 0.9, cache off.
+
+**Which failure it was meant to fix:** diagnosis pattern 1. `suggest_outfit` broke its own length promise in 23 of 60 outputs, because the model spent words on a greeting and sign-off and the one soft "under 120 words" line didn't hold it back.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 | --------- | ------ | ----- | ----- | ----- | ----- | ----- | ------- |
-| 1.        |        |       |       |       |       |       |         |
-| 2.        |        |       |       |       |       |       |         |
-| 3.        |        |       |       |       |       |       |         |
-| 4.        |        |       |       |       |       |       |         |
-| 5.        |        |       |       |       |       |       |         |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected item is the item the next tools receive | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. The fit card | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Size traps | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Did it help, and how do I know:**
+Same column mapping as the before run (each try is one query, PASS only if all 5 runs of it passed). Results: [results/run_2026-11-09_1115_after.md](results/run_2026-11-09_1115_after.md) and [results/fitcard_2026-11-09_1115_after.md](results/fitcard_2026-11-09_1115_after.md).
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+**Did it help, and how do I know:** yes, on the thing it was aimed at, and it broke nothing my criteria measure.
+
+| Measure | Before | After |
+| ------- | ------ | ----- |
+| Criteria met | 5 of 5 | 5 of 5 |
+| Outfits over 120 words (example wardrobe, 55 outfits) | 23 | 0 |
+| Outfit length, min / median / max words | 94 / 119 / 146 | 65 / 79 / 97 |
+| Outfits opening with a greeting ("Hey there!") | 45 of 50 | 0 of 50 |
+| Outfits naming at least 2 wardrobe pieces exactly | 50 of 50 | 50 of 50 |
+| Output tokens for the whole `run_eval.py` run | 13,055 | 9,157 |
+
+The before numbers come from [results/run_2026-11-09_1105_before.md](results/run_2026-11-09_1105_before.md) and [results/fitcard_2026-11-09_1105_before.md](results/fitcard_2026-11-09_1105_before.md). Every outfit is in those files, so the word counts can be checked by counting the text there. The outfits got shorter without losing what they're for: each one still names at least 5 pieces from the wardrobe by their exact names. One example from the after run (criterion 1, query 1, run 1, from `tools.py::suggest_outfit`):
+
+```
+Outfit One: Pair the graphic tee with baggy straight-leg jeans, dark wash and black combat boots. Layer the vintage black denim jacket on top and finish with the black crossbody bag for an effortless, grunge-inspired streetwear look.
+
+Outfit Two: Tuck the graphic tee into the wide-leg khaki trousers. Cinch the waist with the brown leather belt, and wear it with the chunky white sneakers for a cool, casual high-low contrast.
+```
+
+Two things I did not expect. Fit cards opening with "Score" or "Scored" dropped from 36 of 60 to 17 of 60, even though I didn't touch the fit card prompt. The card is written from the outfit text, and the outfit no longer starts with "...is an absolute steal", so that is the likely reason, but I haven't tested it. And the output token count fell by about 30%, so each run is also cheaper.
 
 ---
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+No criterion is missed, so these are things my criteria don't catch:
+
+- **The empty-wardrobe outfit can still go over 120 words.** I didn't change that prompt, and in the after run one of its 5 outputs was 124 words (before: 102 to 115). The same prompt change would very likely fix it. I left it out to keep the improvement to one change.
+- **Fit cards still sound alike.** 17 of 60 cards still open with "Score" or "Scored". Criterion 4 doesn't measure variety, so I'd add a check such as "for 5 different items, no two cards share their first two words", and then give the fit card prompt an instruction about openings.
+- **Criterion 4 is easy to pass.** Every card in both runs was exactly 3 sentences with the right price and platform, so 4 of 5 is a low bar. Tightening it to 5 of 5, plus the variety check above, would make it worth measuring.
+- **Criterion 5 can't be scored from the run log alone.** The trace prints only the top 3 result titles, not each result's size, so I checked sizes by calling `search_listings` directly. Logging every result's size in the trace would fix that.
+- **Query parsing edge cases.** `'size M/L top'` reads the size as `M` and leaves `L` in the search words, and `'tee under 30 dollars'` leaves `dollars` in. Neither is in my criteria. Search still returns sensible results for both, but they show the regex parser only handles the phrasings I wrote it for.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
